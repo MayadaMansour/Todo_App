@@ -1,135 +1,140 @@
+import 'package:bloc/bloc.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:meta/meta.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:todo_app/share/cubit/states.dart';
 import 'package:todo_app/ui/archive_task/archive_task_screen.dart';
 import 'package:todo_app/ui/done_task/done_task_screen.dart';
 import 'package:todo_app/ui/new_task/new_task_screen.dart';
 
+
+
 class AppCubit extends Cubit<AppStates> {
-  AppCubit() : super(InitialState());
-  static AppCubit get(context) => BlocProvider.of(context);
+
+  AppCubit() : super(AppInitialState());
+
+  static AppCubit get(BuildContext context) => BlocProvider.of(context) ;
 
   int currentIndex = 0;
-  Database? database;
-  bool showSheet = false;
-  IconData fabIcon = Icons.edit;
-  List<Widget> screen = [
-    NewTaskScreen(),
-    DoneTaskScreen(),
-    ArchiveTaskScreen()
+  late Database database;
+  List<Map<dynamic,dynamic>> newTasks = [];
+  List<Map<dynamic,dynamic>> doneTasks = [];
+  List<Map<dynamic,dynamic>> archivedTasks = [];
+  bool fbPressed = false;
+  IconData mainIcon = Icons.edit;
+
+
+
+  List<Widget> screens = [
+    NewTasksScreen(),
+    ArchivedTasks(),
+    DoneTasks(),
   ];
-  List<String> title = ["New Tasks", "Done Tasks", "Archived Tasks"];
-  List<Map> newTasks = [];
-  List<Map> doneTasks = [];
-  List<Map> archiveTasks = [];
 
+  List<String> titles = ['New Tasks', 'Archived Tasks', 'Done Tasks'];
 
-
-
-  void changeIndex(int index) {
+  void changeIndex(int index){
     currentIndex = index;
-    emit(ChangeNavBar());
+    emit(AppChangedBottomNavState());
   }
 
-  void bottomSheetState({required bool isShow, required IconData icon}) {
-    fabIcon = icon;
-    showSheet = isShow;
-    emit(BottomSheetState());
+  void changeBottomSheetState({
+    @required bool? isShow,
+    @required IconData? icon
+  }){
+    fbPressed = isShow!;
+    mainIcon = icon!;
+    emit(AppChangedBottomSheetState());
   }
 
-  void CreateDataBase() {
-    openDatabase("todo.db", version: 1, onCreate: (database, version) {
-      database
-          .execute(
-              "CREATE TABLE tasks (id INTEGER PRIMER KEY,title TEXT,date TEXT,time TEXT,status TEXT)")
-          .then((value) {})
-          .catchError((error) {});
-    }, onOpen: (database) {
-      getDataBase(database);
-    }).then((value) {
+  // ignore: invalid_required_named_param
+  void createDatabase(){
+    openDatabase(
+      'tasks.db',
+      version: 1,
+      onCreate: (database, version) {
+        database
+            .execute(
+          'CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT, date TEXT, time TEXT, status TEXT)',
+        )
+            .then((value) {
+          print('2.Table is created');
+        }).catchError((error) {
+          print('The error is $error');
+        });
+        print('1.Database is created');
+      },
+      onOpen: (database) {
+        print('3.Database is opened');
+        getFromDatabase(database);
+      },
+    ).then((value) {
       database = value;
-      emit(CreateDataBaseState());
+      emit(AppCreateDatabaseState());
     });
   }
 
+  insertIntoDatabase({
+    @required String taskName = " ",
+    @required String date = " ",
+    @required String time = " ",
 
-
-  InsertDataBase({
-    required String title,
-    required String time,
-    required String date,
   }) async {
-    await database!.transaction((txn) async {
-      txn
-          .rawInsert(
-        'INSERT INTO tasks(title, date, time, status) VALUES("$title", "$date", "$time", "new")',
-      )
-          .then((value) {
-        print('$value inserted successfully');
-        emit(InsertDataBaseState());
-
-        getDataBase(database);
+    await database.transaction((txn) {
+      return txn.rawInsert(
+          'INSERT INTO tasks(title, date, time, status) VALUES("$taskName", "$date", "$time", "New")'
+      ).then((value) {
+        print("A new Row is inserted: $value");
+        emit(AppInsertDatabaseState());
+        getFromDatabase(database);
       }).catchError((error) {
-        print('Error When Inserting New Record ${error.toString()}');
+        print('This error is caught will inserting a new row ${error.toString()}');
       });
-
-      return null;
     });
   }
 
-
-
-  void getDataBase(database)
-  {
+  void getFromDatabase(Database database){
     newTasks = [];
     doneTasks = [];
-    archiveTasks = [];
-
-    emit(GetDataBaseLoadingState());
-
+    archivedTasks = [];
     database.rawQuery('SELECT * FROM tasks').then((value) {
-
-      value.forEach((element)
-      {
-        if(element['status'] == 'new')
-          newTasks.add(element);
-        else if(element['status'] == 'done')
+      value.forEach((element) {
+        if(element['status'] == 'New'){
+          newTasks.add(element);//used = before because i got all of the list once and equal it
+        }else if(element['status'] == 'Done'){
           doneTasks.add(element);
-        else archiveTasks.add(element);
+        }else{
+          archivedTasks.add(element);
+        }
       });
-
-      emit(GetDataBaseState());
+      emit(AppGetDatabaseState());
     });
   }
 
-  void updateDataBase({
-    required String status,
-    required  int id,
-  }) async
-  {
-    database!.rawUpdate(
-      'UPDATE tasks SET status = ? WHERE id = ?',
-      ['$status', id],
-    ).then((value)
-    {
-      getDataBase(database);
-      emit(UpdateDataBaseState());
+  void updateDatabase({
+    @required String? status,
+    @required int? id,
+  }) async{
+    database.rawUpdate(
+        'UPDATE tasks SET status = ? WHERE id = ?',//list of values (new values(update values))
+        ['$status' , id]
+    ).then((value) {
+      getFromDatabase(database);
+      emit(AppUpdateDatabaseState());
     });
   }
 
-
-  void deleteDataBase({
-    required int id,
-  }) async
-  {
-    database!.rawDelete('DELETE FROM tasks WHERE id = ?', [id])
-        .then((value)
-    {
-      getDataBase(database);
-      emit(DeletDataBaseState());
+  void deleteData({
+    @required int? id,
+  }) async{
+    database.rawDelete(
+      'DELETE FROM tasks WHERE id = ?', [id],
+    ).then((value) {
+      getFromDatabase(database);
+      emit(AppDeleteDatabaseState());
     });
   }
-
-
 }
+

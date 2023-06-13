@@ -1,158 +1,187 @@
-
-import 'package:conditional_builder_null_safety/conditional_builder_null_safety.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:todo_app/share/componants/componant.dart';
 import 'package:todo_app/share/cubit/cubit.dart';
 import 'package:todo_app/share/cubit/states.dart';
 
+var scaffoldKey = GlobalKey<ScaffoldState>();
+var formKey = GlobalKey<FormState>();
+var sKey = scaffoldKey.currentState;
+TextEditingController titleController = TextEditingController();
+TextEditingController timeController = TextEditingController();
+TextEditingController dateController = TextEditingController();
 
 class HomePage extends StatelessWidget {
-
-  var keyScaffold = GlobalKey<ScaffoldState>();
-  var keyForm = GlobalKey<FormState>();
-  var textController = TextEditingController();
-  var timerController = TextEditingController();
-  var dayController = TextEditingController();
-
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (BuildContext context) => AppCubit()..CreateDataBase(),
+      create: (context) => AppCubit()..createDatabase(),
       child: BlocConsumer<AppCubit, AppStates>(
-        listener: (context, state) {
-          if(state is InsertDataBaseState){
+        listener: (BuildContext context, AppStates state) {
+          if (state is AppInsertDatabaseState) {
             Navigator.pop(context);
           }
         },
-        builder: (context, state) {
+        builder: (BuildContext context, AppStates state) {
+          AppCubit cubit = AppCubit.get(context);
           return Scaffold(
-            key: keyScaffold,
+            key: scaffoldKey,
             appBar: AppBar(
-              title: Text(
-                AppCubit.get(context).title[AppCubit.get(context).currentIndex],
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.bold),
-              ),
+              title:
+                  Text('${cubit.titles[AppCubit.get(context).currentIndex]}'),
+              centerTitle: true,
             ),
-            body: ConditionalBuilder(
-              condition: state is! GetDataBaseLoadingState,
-              builder: (context) =>AppCubit.get(context).screen[AppCubit.get(context).currentIndex],
-              fallback: (context) => Center(child: CircularProgressIndicator()),
-            ),
+            body: cubit.screens[cubit.currentIndex],
             floatingActionButton: FloatingActionButton(
-              child: Icon(AppCubit.get(context).fabIcon),
               onPressed: () {
-                if (AppCubit.get(context).showSheet) {
-                  if (keyForm.currentState!.validate()) {
-                    AppCubit.get(context).InsertDataBase(title:textController.text , date: dayController.text, time: timerController.text);
+                if (cubit.fbPressed) {
+                  if (formKey.currentState!.validate()) {
+                    cubit.insertIntoDatabase(
+                        taskName: titleController.text,
+                        date: dateController.text,
+                        time: timeController.text);
                   }
                 } else {
-                  keyScaffold.currentState!
+                  titleController = TextEditingController();
+                  timeController = TextEditingController();
+                  dateController = TextEditingController();
+                  sKey!
                       .showBottomSheet(
-                          (context) => Container(
-                                color: Colors.white,
-                                padding: EdgeInsets.all(20),
-                                child: Form(
-                                  key: keyForm,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      defaultTextFeild(
-                                        controller: textController,
-                                        type: TextInputType.text,
-                                        labelText: 'Task Title',
-                                        prefix: Icons.title,
-                                        validate: (value) {
-                                          if (value!.isEmpty) {
-                                            return 'title must not be empty';
-                                          }
-                                          return null;
-                                        },
+                        (context) => Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Container(
+                            color: Colors.grey[100],
+                            child: Form(
+                              key: formKey,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextFormField(
+                                    controller: titleController,
+                                    keyboardType: TextInputType.text,
+                                    decoration: InputDecoration(
+                                      prefixIcon: Icon(
+                                        Icons.title,
+                                        size: 30.0,
                                       ),
-                                      SizedBox(
-                                        height: 15,
-                                      ),
-                                      defaultTextFeild(
-                                        controller: timerController,
-                                        type: TextInputType.datetime,
-                                        labelText: 'Task Time',
-                                        prefix: Icons.more_time,
-                                        onTap: () {
-                                          showTimePicker(
-                                            context: context,
-                                            initialTime: TimeOfDay.now(),
-                                          ).then((value) {
-                                            timerController.text = value!
-                                                .format(context)
-                                                .toString();
-                                          });
-                                        },
-                                        validate: (value) {
-                                          if (value!.isEmpty) {
-                                            return 'Please enter the Time';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                      SizedBox(
-                                        height: 15,
-                                      ),
-                                      defaultTextFeild(
-                                          controller: dayController,
-                                          type: TextInputType.datetime,
-                                          prefix: Icons.calendar_today,
-                                          labelText: "Task Day",
-                                          validate: (value) {
-                                            if (value!.isEmpty) {
-                                              return 'Please enter the Time';
-                                            }
-                                            return null;
-                                          },
-                                          onTap: () {
-                                            showDatePicker(
-                                                    context: context,
-                                                    initialDate: DateTime.now(),
-                                                    firstDate: DateTime.now(),
-                                                    lastDate: DateTime.parse(
-                                                        "2023-08-20"))
-                                                .then((value) {
-                                              dayController.text = DateFormat()
-                                                  .add_yMMMd()
-                                                  .format(value!);
-                                            });
-                                          })
-                                    ],
+                                      border: OutlineInputBorder(),
+                                      hintText: 'A new Task What is it?!',
+                                    ),
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "Title shouldn't be empty.";
+                                      }
+                                      return null;
+                                    },
                                   ),
-                                ),
+                                  SizedBox(
+                                    height: 15.0,
+                                  ),
+                                  TextFormField(
+                                    controller: timeController,
+                                    keyboardType: TextInputType.datetime,
+                                    decoration: InputDecoration(
+                                      prefixIcon: Icon(
+                                        Icons.watch_later_outlined,
+                                        size: 30.0,
+                                      ),
+                                      border: OutlineInputBorder(),
+                                      hintText: 'Pick the time!',
+                                    ),
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "Time shouldn't be empty.";
+                                      }
+                                      return null;
+                                    },
+                                    onTap: () {
+                                      showTimePicker(
+                                        context: context,
+                                        initialTime: TimeOfDay.now(),
+                                      ).then((value) {
+                                        timeController.text =
+                                            value!.format(context).toString();
+                                        print(value.format(context).toString());
+                                      }).catchError((error) {
+                                        print(
+                                            "This error ${error.toString()} happened while picking time");
+                                      });
+                                    },
+                                  ),
+                                  SizedBox(
+                                    height: 15.0,
+                                  ),
+                                  TextFormField(
+                                    controller: dateController,
+                                    keyboardType: TextInputType.datetime,
+                                    decoration: InputDecoration(
+                                      prefixIcon: Icon(
+                                        Icons.calendar_today,
+                                        size: 30.0,
+                                      ),
+                                      border: OutlineInputBorder(),
+                                      hintText: 'Pick the date!',
+                                    ),
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "Date shouldn't be empty.";
+                                      }
+                                      return null;
+                                    },
+                                    onTap: () {
+                                      showDatePicker(
+                                        context: context,
+                                        initialDate: DateTime.now(),
+                                        firstDate: DateTime.now(),
+                                        lastDate: DateTime.parse('2024-1-1'),
+                                      ).then((value) {
+                                        dateController.text =
+                                            DateFormat.yMMMd().format(value!);
+                                      });
+                                    },
+                                  ),
+                                ],
                               ),
-                          elevation: 15)
+                            ),
+                          ),
+                        ),
+                      )
                       .closed
                       .then((value) {
-                        AppCubit.get(context).bottomSheetState(isShow: false, icon: Icons.edit);
+                    cubit.changeBottomSheetState(
+                        isShow: false, icon: Icons.edit);
                   });
-                  AppCubit.get(context).bottomSheetState(isShow: true, icon: Icons.add);
+                  cubit.changeBottomSheetState(isShow: true, icon: Icons.add);
                 }
               },
+              // ignore: prefer_const_constructors
+              child: Icon(
+                cubit.mainIcon,
+                size: 30.0,
+              ),
             ),
             bottomNavigationBar: BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
-              currentIndex: AppCubit.get(context).currentIndex,
+              elevation: 50.0,
+              currentIndex: cubit.currentIndex,
               onTap: (index) {
-                AppCubit.get(context).changeIndex(index);
+                cubit.changeIndex(index);
               },
               items: [
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.menu),
-                  label: "Tasks",
+                  icon: Icon(
+                    Icons.view_list,
+                  ),
+                  label: 'Tasks',
                 ),
                 BottomNavigationBarItem(
-                    icon: Icon(Icons.done_outline), label: "Done"),
+                  icon: Icon(Icons.archive_outlined),
+                  label: 'Archived',
+                ),
                 BottomNavigationBarItem(
-                    icon: Icon(Icons.archive_outlined), label: "Archive"),
+                  icon: Icon(Icons.check_circle_outline),
+                  label: 'Done',
+                ),
               ],
             ),
           );
@@ -160,8 +189,4 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
-
-
-
-
 }

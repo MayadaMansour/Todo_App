@@ -1,12 +1,18 @@
 abstract class AppStates {}
 
-class InitialState extends AppStates {}
-class ChangeNavBar extends AppStates{}
-class CreateDataBaseState extends AppStates{}
-class InsertDataBaseState extends AppStates{}
-class GetDataBaseState extends AppStates{}
-class UpdateDataBaseState extends AppStates{}
-class DeletDataBaseState extends AppStates{}
-class GetDataBaseLoadingState extends AppStates{}
-class BottomSheetState extends AppStates{}
+class AppInitialState extends AppStates {}
+
+class AppChangedBottomNavState extends AppStates{}//the new tasks screen
+
+class AppCreateDatabaseState extends AppStates{}
+
+class AppGetDatabaseState extends AppStates{}
+
+class AppInsertDatabaseState extends AppStates{}
+
+class AppUpdateDatabaseState extends AppStates{}
+
+class AppDeleteDatabaseState extends AppStates{}
+
+class AppChangedBottomSheetState extends AppStates{}
 
